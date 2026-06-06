@@ -15,14 +15,19 @@ public struct SessionUsageReader {
 
     public func latestSnapshot() -> UsageSnapshot? {
         let files = recentSessionFiles()
+        var latestSnapshot: UsageSnapshot?
 
         for file in files {
-            if let snapshot = snapshot(from: file.url, observedAt: file.modifiedAt) {
-                return snapshot
+            guard let snapshot = snapshot(from: file.url) else {
+                continue
+            }
+
+            if snapshot.observedAt > (latestSnapshot?.observedAt ?? .distantPast) {
+                latestSnapshot = snapshot
             }
         }
 
-        return nil
+        return latestSnapshot
     }
 
     private func recentSessionFiles() -> [(url: URL, modifiedAt: Date)] {
@@ -56,7 +61,7 @@ public struct SessionUsageReader {
         return files.sorted { $0.modifiedAt > $1.modifiedAt }
     }
 
-    private func snapshot(from fileURL: URL, observedAt: Date) -> UsageSnapshot? {
+    private func snapshot(from fileURL: URL) -> UsageSnapshot? {
         guard let data = readTail(of: fileURL) else {
             return nil
         }
@@ -68,7 +73,15 @@ public struct SessionUsageReader {
                 continue
             }
 
-            guard let rateLimits = findDictionary(named: "rate_limits", in: object) else {
+            guard let dictionary = object as? [String: Any] else {
+                continue
+            }
+
+            guard let rateLimits = findDictionary(named: "rate_limits", in: dictionary) else {
+                continue
+            }
+
+            guard let observedAt = eventDate(from: dictionary) else {
                 continue
             }
 
@@ -78,6 +91,16 @@ public struct SessionUsageReader {
         }
 
         return nil
+    }
+
+    private func eventDate(from dictionary: [String: Any]) -> Date? {
+        guard let timestamp = dictionary["timestamp"] as? String else {
+            return nil
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: timestamp)
     }
 
     private func readTail(of fileURL: URL) -> Data? {

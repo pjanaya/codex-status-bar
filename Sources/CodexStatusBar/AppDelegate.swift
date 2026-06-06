@@ -4,7 +4,9 @@ import CodexStatusCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = UsageMonitor()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: 68)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: 59)
+    private let statusLabel = NSTextField(labelWithString: "")
+    private var refreshMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureStatusItem()
@@ -22,15 +24,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         button.toolTip = "Codex allowance remaining"
-        button.cell?.wraps = true
-        button.cell?.lineBreakMode = .byClipping
+        button.title = ""
+
+        statusLabel.alignment = .center
+        statusLabel.maximumNumberOfLines = 2
+        statusLabel.lineBreakMode = .byClipping
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(statusLabel)
+
+        NSLayoutConstraint.activate([
+            statusLabel.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            statusLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor, constant: -0.5)
+        ])
 
         let menu = NSMenu()
-        menu.addItem(
+        let refreshMenuItem = menu.addItem(
             withTitle: "Refresh",
             action: #selector(refresh),
             keyEquivalent: "r"
         )
+        self.refreshMenuItem = refreshMenuItem
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Codex Status Bar",
@@ -66,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paragraphStyle.minimumLineHeight = 8
         paragraphStyle.maximumLineHeight = 8
 
-        statusItem.button?.attributedTitle = NSAttributedString(
+        statusLabel.attributedStringValue = NSAttributedString(
             string: title,
             attributes: [
                 .font: NSFont.monospacedDigitSystemFont(
@@ -82,6 +96,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     private func refresh() {
         monitor.refresh()
+        showRefreshFeedback()
+    }
+
+    private func showRefreshFeedback() {
+        refreshMenuItem?.title = "Refreshed just now"
+        statusLabel.alphaValue = 0.35
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            statusLabel.alphaValue = 1
+
+            try? await Task.sleep(for: .seconds(4))
+            refreshMenuItem?.title = "Refresh"
+        }
     }
 
     @objc
@@ -92,18 +120,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 private extension Date {
     var formattedResetTime: String {
-        formatted(
-            Date.FormatStyle()
-                .hour(.twoDigits(amPM: .omitted))
-                .minute(.twoDigits)
-        )
+        Self.resetTimeFormatter.string(from: self)
     }
 
     var formattedResetDay: String {
-        formatted(
-            Date.FormatStyle()
-                .day(.twoDigits)
-                .month(.twoDigits)
-        )
+        Self.resetDayFormatter.string(from: self)
     }
+
+    private static let resetTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let resetDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd/MM"
+        return formatter
+    }()
 }
