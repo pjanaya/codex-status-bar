@@ -52,24 +52,17 @@ build/Codex Status Bar.app
 Copy the built app into your personal Applications folder:
 
 ```sh
-mkdir -p "$HOME/Applications"
-cp -R "build/Codex Status Bar.app" "$HOME/Applications/"
-open "$HOME/Applications/Codex Status Bar.app"
+./scripts/install.sh
 ```
 
 Using `~/Applications` avoids requiring administrator access. You can instead
-drag the app into the system `/Applications` folder in Finder.
+drag the app into the system `/Applications` folder in Finder, but the install
+script also configures the `~/Applications` copy to launch automatically when
+you log in.
 
 If macOS blocks the first launch, open **System Settings > Privacy & Security**
 and choose **Open Anyway** for Codex Status Bar. The app is locally ad-hoc
 signed, not notarized for public distribution.
-
-## Launch At Login
-
-1. Open **System Settings**.
-2. Select **General > Login Items & Extensions**.
-3. Under **Open at Login**, click `+`.
-4. Select `Codex Status Bar.app` from your Applications folder.
 
 ## Update
 
@@ -79,10 +72,7 @@ Pull the latest changes, rebuild, quit the running app, and replace it:
 git pull
 swift test
 ./scripts/build-app.sh
-pkill -x CodexStatusBar || true
-rm -rf "$HOME/Applications/Codex Status Bar.app"
-cp -R "build/Codex Status Bar.app" "$HOME/Applications/"
-open "$HOME/Applications/Codex Status Bar.app"
+./scripts/install.sh
 ```
 
 ## Uninstall
@@ -91,6 +81,8 @@ Quit the app from its menu, remove it from Login Items if enabled, then delete
 the bundle:
 
 ```sh
+launchctl bootout "gui/$(id -u)/com.pjanaya.codex-status-bar" || true
+rm -f "$HOME/Library/LaunchAgents/com.pjanaya.codex-status-bar.plist"
 rm -rf "$HOME/Applications/Codex Status Bar.app"
 ```
 
