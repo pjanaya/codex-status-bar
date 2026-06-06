@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSLayoutConstraint.activate([
             statusLabel.leadingAnchor.constraint(equalTo: button.leadingAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-            statusLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor, constant: -0.5)
+            statusLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor, constant: 1.5)
         ])
 
         let menu = NSMenu()
