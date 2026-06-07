@@ -56,17 +56,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateTitle(snapshot: UsageSnapshot?, now: Date) {
         guard let snapshot else {
-            setTitle("--% --:--\n--% --/--")
+            setTitle(
+                firstPercent: nil,
+                firstReset: "--:--",
+                secondPercent: nil,
+                secondReset: "--/--"
+            )
             return
         }
 
         let fiveHourRemaining = snapshot.fiveHour.remainingPercent(at: now)
         let weeklyRemaining = snapshot.weekly.remainingPercent(at: now)
 
-        let firstLine = "\(fiveHourRemaining)% \(snapshot.fiveHour.resetDate.formattedResetTime)"
-        let secondLine = "\(weeklyRemaining)% \(snapshot.weekly.resetDate.formattedResetDay)"
-
-        setTitle("\(firstLine)\n\(secondLine)")
+        setTitle(
+            firstPercent: fiveHourRemaining,
+            firstReset: snapshot.fiveHour.resetDate.formattedResetTime,
+            secondPercent: weeklyRemaining,
+            secondReset: snapshot.weekly.resetDate.formattedResetDay
+        )
 
         statusItem.button?.toolTip = [
             "Codex allowance remaining",
@@ -74,23 +81,81 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ].joined(separator: "\n")
     }
 
-    private func setTitle(_ title: String) {
+    private func setTitle(
+        firstPercent: Int?,
+        firstReset: String,
+        secondPercent: Int?,
+        secondReset: String
+    ) {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
         paragraphStyle.minimumLineHeight = 8
         paragraphStyle.maximumLineHeight = 8
 
-        statusLabel.attributedStringValue = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.monospacedDigitSystemFont(
-                    ofSize: 8,
-                    weight: .medium
-                ),
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraphStyle
-            ]
+        let baseAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(
+                ofSize: 8,
+                weight: .medium
+            ),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let title = NSMutableAttributedString()
+        appendLine(
+            to: title,
+            percent: firstPercent,
+            reset: firstReset,
+            baseAttributes: baseAttributes
         )
+        title.append(NSAttributedString(string: "\n", attributes: baseAttributes))
+        appendLine(
+            to: title,
+            percent: secondPercent,
+            reset: secondReset,
+            baseAttributes: baseAttributes
+        )
+
+        statusLabel.attributedStringValue = title
+    }
+
+    private func appendLine(
+        to title: NSMutableAttributedString,
+        percent: Int?,
+        reset: String,
+        baseAttributes: [NSAttributedString.Key: Any]
+    ) {
+        let percentageText = percent.map { "\($0)%" } ?? "--%"
+        var percentageAttributes = baseAttributes
+
+        if let percent {
+            percentageAttributes[.foregroundColor] = color(for: percent)
+        }
+
+        title.append(
+            NSAttributedString(
+                string: percentageText,
+                attributes: percentageAttributes
+            )
+        )
+        title.append(
+            NSAttributedString(
+                string: " \(reset)",
+                attributes: baseAttributes
+            )
+        )
+    }
+
+    private func color(for remainingPercent: Int) -> NSColor {
+        if remainingPercent < 5 {
+            return .systemRed
+        }
+
+        if remainingPercent < 15 {
+            return .systemYellow
+        }
+
+        return .labelColor
     }
 
     @objc
