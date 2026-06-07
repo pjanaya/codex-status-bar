@@ -4,6 +4,19 @@ import Testing
 
 struct SessionUsageReaderTests {
     @Test
+    func readsAppServerRateLimitResponse() {
+        let response = """
+        {"id":1,"result":{"userAgent":"Codex"}}
+        {"id":2,"result":{"rateLimits":{"primary":{"usedPercent":100,"windowDurationMins":300,"resetsAt":2000000000},"secondary":{"usedPercent":61,"windowDurationMins":10080,"resetsAt":2000600000}}}}
+        """
+
+        let snapshot = AppServerUsageReader().snapshot(from: Data(response.utf8))
+
+        #expect(snapshot?.fiveHour.usedPercent == 100)
+        #expect(snapshot?.weekly.usedPercent == 61)
+    }
+
+    @Test
     func readsLatestRateLimitSnapshot() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

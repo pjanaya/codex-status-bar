@@ -19,6 +19,7 @@ fi
 
 launchctl bootout "$LAUNCH_DOMAIN/$LAUNCH_LABEL" 2>/dev/null || true
 pkill -x CodexStatusBar 2>/dev/null || true
+sleep 1
 
 mkdir -p "$INSTALL_DIR" "$LAUNCH_AGENTS_DIR"
 rm -rf "$INSTALLED_APP"

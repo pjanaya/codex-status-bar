@@ -88,7 +88,9 @@ rm -rf "$HOME/Applications/Codex Status Bar.app"
 
 ## Behavior
 
-- Refreshes once per minute and when **Refresh** is selected.
+- Reads live limits from Codex's local app-server when **Refresh** is selected.
+- Refreshes live limits every five minutes.
+- Uses JSONL snapshots only when the live request fails.
 - Reads only the tail of recently modified JSONL files.
 - Selects the newest embedded rate-limit event across concurrent Codex sessions.
 - Switches a window to `100%` when its recorded reset time passes.

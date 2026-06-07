@@ -5,6 +5,7 @@ import Foundation
 final class UsageMonitor {
     var onChange: ((UsageSnapshot?, Date) -> Void)?
 
+    private let appServerReader = AppServerUsageReader()
     private let reader: SessionUsageReader
     private var pollTimer: Timer?
     private var resetTimer: Timer?
@@ -21,7 +22,7 @@ final class UsageMonitor {
         refresh()
 
         pollTimer = Timer.scheduledTimer(
-            withTimeInterval: 60,
+            withTimeInterval: 5 * 60,
             repeats: true
         ) { [weak self] _ in
             Task { @MainActor in
@@ -31,9 +32,16 @@ final class UsageMonitor {
     }
 
     func refresh() {
-        snapshot = reader.latestSnapshot()
-        publish()
-        scheduleNextReset()
+        Task {
+            do {
+                snapshot = try await appServerReader.latestSnapshot()
+            } catch {
+                snapshot = reader.latestSnapshot()
+            }
+
+            publish()
+            scheduleNextReset()
+        }
     }
 
     private func publish() {
