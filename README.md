@@ -1,6 +1,13 @@
 # Codex Status Bar
 
-A tiny, local-only macOS menu-bar indicator for Codex usage limits:
+A tiny, local-only indicator for Codex usage limits.
+
+## Platforms
+
+- macOS menu-bar app: this README.
+- Windows notification-area app: [`windows/README.md`](windows/README.md).
+
+## macOS
 
 ```text
 95% 14:25
