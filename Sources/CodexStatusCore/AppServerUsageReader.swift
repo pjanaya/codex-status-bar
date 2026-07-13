@@ -12,7 +12,9 @@ public struct AppServerUsageReader: Sendable {
     public init(
         fileManager: FileManager = .default,
         codexPaths: [String] = [
+            "/Applications/ChatGPT.app/Contents/Resources/codex",
             "/Applications/Codex.app/Contents/Resources/codex",
+            "\(FileManager.default.homeDirectoryForCurrentUser.path)/Applications/ChatGPT.app/Contents/Resources/codex",
             "\(FileManager.default.homeDirectoryForCurrentUser.path)/Applications/Codex.app/Contents/Resources/codex"
         ]
     ) {
@@ -54,17 +56,15 @@ public struct AppServerUsageReader: Sendable {
                 continue
             }
 
-            guard let primary = rateLimits.primary?.usageWindow else {
-                continue
-            }
-
-            guard let secondary = rateLimits.secondary?.usageWindow else {
+            let windows = [rateLimits.primary?.usageWindow, rateLimits.secondary?.usageWindow]
+                .compactMap { $0 }
+            guard !windows.isEmpty else {
                 continue
             }
 
             return UsageSnapshot(
-                fiveHour: primary,
-                weekly: secondary,
+                fiveHour: windows.firstFiveHourWindow,
+                weekly: windows.firstWeeklyWindow,
                 observedAt: observedAt
             )
         }
@@ -133,6 +133,7 @@ private struct RateLimits: Decodable {
 private struct RateLimitWindow: Decodable {
     let usedPercent: Int
     let resetsAt: Int?
+    let windowDurationMins: Int?
 
     var usageWindow: UsageWindow? {
         guard let resetsAt else {
@@ -141,7 +142,18 @@ private struct RateLimitWindow: Decodable {
 
         return UsageWindow(
             usedPercent: usedPercent,
-            resetDate: Date(timeIntervalSince1970: TimeInterval(resetsAt))
+            resetDate: Date(timeIntervalSince1970: TimeInterval(resetsAt)),
+            windowMinutes: windowDurationMins
         )
+    }
+}
+
+private extension Array where Element == UsageWindow {
+    var firstFiveHourWindow: UsageWindow? {
+        first { $0.windowMinutes == 300 }
+    }
+
+    var firstWeeklyWindow: UsageWindow? {
+        first { $0.windowMinutes == 10_080 } ?? first
     }
 }

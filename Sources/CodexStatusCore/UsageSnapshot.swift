@@ -3,10 +3,12 @@ import Foundation
 public struct UsageWindow: Equatable, Sendable {
     public let usedPercent: Int
     public let resetDate: Date
+    public let windowMinutes: Int?
 
-    public init(usedPercent: Int, resetDate: Date) {
+    public init(usedPercent: Int, resetDate: Date, windowMinutes: Int? = nil) {
         self.usedPercent = usedPercent
         self.resetDate = resetDate
+        self.windowMinutes = windowMinutes
     }
 
     public func remainingPercent(at date: Date) -> Int {
@@ -19,11 +21,11 @@ public struct UsageWindow: Equatable, Sendable {
 }
 
 public struct UsageSnapshot: Equatable, Sendable {
-    public let fiveHour: UsageWindow
-    public let weekly: UsageWindow
+    public let fiveHour: UsageWindow?
+    public let weekly: UsageWindow?
     public let observedAt: Date
 
-    public init(fiveHour: UsageWindow, weekly: UsageWindow, observedAt: Date) {
+    public init(fiveHour: UsageWindow?, weekly: UsageWindow?, observedAt: Date) {
         self.fiveHour = fiveHour
         self.weekly = weekly
         self.observedAt = observedAt

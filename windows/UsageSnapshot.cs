@@ -5,18 +5,24 @@ using System.Linq;
 namespace CodexStatusBar.Windows;
 
 internal sealed record UsageSnapshot(
-    UsageWindow FiveHour,
-    UsageWindow Weekly,
+    UsageWindow? FiveHour,
+    UsageWindow? Weekly,
     DateTimeOffset ObservedAt
 )
 {
     public DateTimeOffset? NextResetAfter(DateTimeOffset now)
     {
-        var resetDates = new List<DateTimeOffset>
+        var resetDates = new List<DateTimeOffset>();
+
+        if (FiveHour is not null)
         {
-            FiveHour.ResetAt,
-            Weekly.ResetAt
-        };
+            resetDates.Add(FiveHour.ResetAt);
+        }
+
+        if (Weekly is not null)
+        {
+            resetDates.Add(Weekly.ResetAt);
+        }
 
         return resetDates
             .Where(resetAt => resetAt > now)
@@ -25,7 +31,11 @@ internal sealed record UsageSnapshot(
     }
 }
 
-internal sealed record UsageWindow(int UsedPercent, DateTimeOffset ResetAt)
+internal sealed record UsageWindow(
+    int UsedPercent,
+    DateTimeOffset ResetAt,
+    int? WindowMinutes
+)
 {
     public int RemainingPercent(DateTimeOffset now)
     {

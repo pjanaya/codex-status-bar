@@ -161,17 +161,17 @@ public struct SessionUsageReader {
         from rateLimits: [String: Any],
         observedAt: Date
     ) -> UsageSnapshot? {
-        guard let primary = makeWindow(from: rateLimits["primary"]) else {
-            return nil
-        }
-
-        guard let secondary = makeWindow(from: rateLimits["secondary"]) else {
+        let windows = [
+            makeWindow(from: rateLimits["primary"]),
+            makeWindow(from: rateLimits["secondary"])
+        ].compactMap { $0 }
+        guard !windows.isEmpty else {
             return nil
         }
 
         return UsageSnapshot(
-            fiveHour: primary,
-            weekly: secondary,
+            fiveHour: windows.firstFiveHourWindow,
+            weekly: windows.firstWeeklyWindow,
             observedAt: observedAt
         )
     }
@@ -189,9 +189,12 @@ public struct SessionUsageReader {
             return nil
         }
 
+        let windowMinutes = number(from: dictionary["window_minutes"]).map(Int.init)
+
         return UsageWindow(
             usedPercent: Int(usedPercent.rounded()),
-            resetDate: Date(timeIntervalSince1970: resetTimestamp)
+            resetDate: Date(timeIntervalSince1970: resetTimestamp),
+            windowMinutes: windowMinutes
         )
     }
 
@@ -205,5 +208,15 @@ public struct SessionUsageReader {
         }
 
         return nil
+    }
+}
+
+private extension Array where Element == UsageWindow {
+    var firstFiveHourWindow: UsageWindow? {
+        first { $0.windowMinutes == 300 }
+    }
+
+    var firstWeeklyWindow: UsageWindow? {
+        first { $0.windowMinutes == 10_080 } ?? first
     }
 }

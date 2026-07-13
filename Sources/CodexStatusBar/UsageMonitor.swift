@@ -56,10 +56,9 @@ final class UsageMonitor {
         }
 
         let now = Date()
-        let futureResets = [
-            snapshot.fiveHour.resetDate,
-            snapshot.weekly.resetDate
-        ].filter { $0 > now }
+        let futureResets = [snapshot.fiveHour?.resetDate, snapshot.weekly?.resetDate]
+            .compactMap { $0 }
+            .filter { $0 > now }
 
         guard let nextReset = futureResets.min() else {
             return

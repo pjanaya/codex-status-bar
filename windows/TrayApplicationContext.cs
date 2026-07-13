@@ -70,8 +70,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private void publish()
     {
         var now = DateTimeOffset.Now;
-        var fiveHour = snapshot?.FiveHour.RemainingPercent(now);
-        var weekly = snapshot?.Weekly.RemainingPercent(now);
+        var fiveHour = snapshot?.FiveHour?.RemainingPercent(now);
+        var weekly = snapshot?.Weekly?.RemainingPercent(now);
 
         notifyIcon.Text = makeCompactTooltip(now);
         if (statusMenuItem is not null)
@@ -92,10 +92,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return "Codex: no usage snapshot yet";
         }
 
-        var fiveHour = snapshot.FiveHour.RemainingPercent(now);
-        var weekly = snapshot.Weekly.RemainingPercent(now);
+        var fiveHour = snapshot.FiveHour?.RemainingPercent(now);
+        var weekly = snapshot.Weekly?.RemainingPercent(now);
+        var fiveHourReset = snapshot.FiveHour?.ResetAt.LocalDateTime.ToString("HH:mm") ?? "--:--";
+        var weeklyReset = snapshot.Weekly?.ResetAt.LocalDateTime.ToString("dd/MM") ?? "--/--";
 
-        return $"5h {fiveHour}% {snapshot.FiveHour.ResetAt.LocalDateTime:HH:mm} | W {weekly}% {snapshot.Weekly.ResetAt.LocalDateTime:dd/MM}";
+        return $"5h {formatPercent(fiveHour)} {fiveHourReset} | W {formatPercent(weekly)} {weeklyReset}";
     }
 
     private string makeStatusText(DateTimeOffset now)
@@ -105,11 +107,23 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return "No usage snapshot yet";
         }
 
-        var fiveHour = snapshot.FiveHour.RemainingPercent(now);
-        var weekly = snapshot.Weekly.RemainingPercent(now);
+        var fiveHour = snapshot.FiveHour?.RemainingPercent(now);
+        var weekly = snapshot.Weekly?.RemainingPercent(now);
+        var fiveHourReset = snapshot.FiveHour?.ResetAt.LocalDateTime.ToString("HH:mm") ?? "--:--";
+        var weeklyReset = snapshot.Weekly?.ResetAt.LocalDateTime.ToString("dd/MM") ?? "--/--";
         var observed = snapshot.ObservedAt.LocalDateTime.ToShortTimeString();
 
-        return $"5h {fiveHour}% resets {snapshot.FiveHour.ResetAt.LocalDateTime:HH:mm}; Week {weekly}% resets {snapshot.Weekly.ResetAt.LocalDateTime:dd/MM}; Updated {observed}";
+        return $"5h {formatPercent(fiveHour)} resets {fiveHourReset}; Week {formatPercent(weekly)} resets {weeklyReset}; Updated {observed}";
+    }
+
+    private static string formatPercent(int? percent)
+    {
+        if (percent is null)
+        {
+            return "--%";
+        }
+
+        return $"{percent}%";
     }
 
     private void scheduleResetTimer()

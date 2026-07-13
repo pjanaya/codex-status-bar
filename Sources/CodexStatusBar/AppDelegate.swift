@@ -65,14 +65,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let fiveHourRemaining = snapshot.fiveHour.remainingPercent(at: now)
-        let weeklyRemaining = snapshot.weekly.remainingPercent(at: now)
+        let fiveHourRemaining = snapshot.fiveHour?.remainingPercent(at: now)
+        let weeklyRemaining = snapshot.weekly?.remainingPercent(at: now)
 
         setTitle(
             firstPercent: fiveHourRemaining,
-            firstReset: snapshot.fiveHour.resetDate.formattedResetTime,
+            firstReset: snapshot.fiveHour?.resetDate.formattedResetTime ?? "--:--",
             secondPercent: weeklyRemaining,
-            secondReset: snapshot.weekly.resetDate.formattedResetDay
+            secondReset: snapshot.weekly?.resetDate.formattedResetDay ?? "--/--"
         )
 
         statusItem.button?.toolTip = [

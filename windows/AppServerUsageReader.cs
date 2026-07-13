@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 
@@ -65,13 +66,21 @@ internal sealed class AppServerUsageReader
 
             var primary = readWindow(rateLimits, "primary");
             var secondary = readWindow(rateLimits, "secondary");
+            var windows = new[] { primary, secondary }
+                .Where(window => window is not null)
+                .Cast<UsageWindow>()
+                .ToList();
 
-            if (primary is null || secondary is null)
+            if (windows.Count == 0)
             {
                 return null;
             }
 
-            return new UsageSnapshot(primary, secondary, observedAt);
+            return new UsageSnapshot(
+                findFiveHourWindow(windows),
+                findWeeklyWindow(windows),
+                observedAt
+            );
         }
 
         return null;
@@ -113,9 +122,38 @@ internal sealed class AppServerUsageReader
             return null;
         }
 
+        var windowMinutes = readOptionalInt(window, "windowDurationMins");
+
         return new UsageWindow(
             usedPercent.GetInt32(),
-            DateTimeOffset.FromUnixTimeSeconds(resetsAt.GetInt64())
+            DateTimeOffset.FromUnixTimeSeconds(resetsAt.GetInt64()),
+            windowMinutes
         );
+    }
+
+    private static int? readOptionalInt(JsonElement value, string name)
+    {
+        if (!value.TryGetProperty(name, out var property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return property.GetInt32();
+    }
+
+    private static UsageWindow? findFiveHourWindow(List<UsageWindow> windows)
+    {
+        return windows.FirstOrDefault(window => window.WindowMinutes == 300);
+    }
+
+    private static UsageWindow? findWeeklyWindow(List<UsageWindow> windows)
+    {
+        return windows.FirstOrDefault(window => window.WindowMinutes == 10_080)
+            ?? windows.FirstOrDefault();
     }
 }
