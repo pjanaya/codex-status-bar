@@ -27,7 +27,46 @@ The app is published to:
 windows\publish\CodexStatusBar.exe
 ```
 
-## Install
+## Install for a Windows coworker
+
+The installer is per Windows user. It copies the published app into the
+user's local application directory and registers it to launch automatically
+when that user signs in after a reboot.
+
+1. Install the prerequisites above and make sure Codex works in PowerShell:
+
+   ```powershell
+   codex --version
+   ```
+
+2. Clone the repository and enter it:
+
+   ```powershell
+   git clone https://github.com/pjanaya/codex-status-bar.git
+   cd codex-status-bar
+   ```
+
+3. Build and install the Windows app:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\windows\scripts\build.ps1
+   powershell -ExecutionPolicy Bypass -File .\windows\scripts\install.ps1
+   ```
+
+The app starts immediately after installation. It does not open a normal
+window; look in the notification area's hidden-icons menu for the tray icon.
+The startup registration applies at sign-in, so repeat the installation for
+each Windows account that should run the indicator.
+
+To confirm the startup entry:
+
+```powershell
+Get-ItemProperty `
+  -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
+  -Name "Codex Status Bar"
+```
+
+## Install manually
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\windows\scripts\install.ps1
@@ -47,7 +86,7 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 
 ## Behavior
 
-- Reads live limits from `codex app-server --stdio`.
+- Reads live limits from `codex app-server`.
 - Refreshes live limits every five minutes.
 - Uses `%USERPROFILE%\.codex\sessions` JSONL snapshots as a fallback.
 - Shows the reset times in the notification tooltip.

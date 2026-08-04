@@ -23,31 +23,82 @@ internal sealed class JsonlUsageReader
             return null;
         }
 
-        return Directory
-            .EnumerateFiles(sessionsDirectory, "*.jsonl", SearchOption.AllDirectories)
-            .Select(TryReadSnapshot)
-            .Where(snapshot => snapshot is not null)
-            .OrderByDescending(snapshot => snapshot!.ObservedAt)
-            .FirstOrDefault();
+        try
+        {
+            return Directory
+                .EnumerateFiles(sessionsDirectory, "*.jsonl", SearchOption.AllDirectories)
+                .Select(TryReadSnapshot)
+                .Where(snapshot => snapshot is not null)
+                .OrderByDescending(snapshot => snapshot!.ObservedAt)
+                .FirstOrDefault();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static UsageSnapshot? TryReadSnapshot(string path)
     {
-        foreach (var line in readTailLines(path).Reverse())
+        try
         {
-            var snapshot = tryReadSnapshotFromLine(line);
-            if (snapshot is not null)
+            foreach (var line in readTailLines(path).Reverse())
             {
-                return snapshot;
+                var snapshot = tryReadSnapshotFromLine(line);
+                if (snapshot is not null)
+                {
+                    return snapshot;
+                }
             }
-        }
 
-        return null;
+            return null;
+        }
+        catch (IOException)
+        {
+            // Codex can keep the newest session file open while appending to it.
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (JsonException)
+        {
+            // Ignore partially written or schema-incompatible session lines.
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
     }
 
     private static IEnumerable<string> readTailLines(string path)
     {
-        using var stream = File.OpenRead(path);
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 64 * 1024,
+            options: FileOptions.SequentialScan
+        );
         var bytesToRead = Math.Min(MaxTailBytes, (int)stream.Length);
         stream.Seek(-bytesToRead, SeekOrigin.End);
 

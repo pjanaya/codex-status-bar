@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
 namespace CodexStatusBar.Windows;
@@ -9,17 +10,15 @@ internal static class TrayIconRenderer
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr handle);
 
-    public static Icon Render(int? fiveHourPercent, int? weeklyPercent)
+    public static Icon Render(int? percent)
     {
         using var bitmap = new Bitmap(32, 32);
         using var graphics = Graphics.FromImage(bitmap);
-        using var font = new Font(FontFamily.GenericSansSerif, 9, FontStyle.Bold, GraphicsUnit.Pixel);
 
         graphics.Clear(Color.Transparent);
-        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-        drawCenteredText(graphics, font, fiveHourPercent, 0);
-        drawCenteredText(graphics, font, weeklyPercent, 15);
+        drawCenteredText(graphics, percent);
 
         var handle = bitmap.GetHicon();
 
@@ -33,19 +32,75 @@ internal static class TrayIconRenderer
         }
     }
 
-    private static void drawCenteredText(Graphics graphics, Font font, int? percent, int y)
+    private static void drawCenteredText(Graphics graphics, int? percent)
     {
         var text = percent?.ToString() ?? "--";
         var color = colorFor(percent);
-
-        using var brush = new SolidBrush(color);
+        using var font = makeReadableFont(graphics, text);
         using var format = new StringFormat
         {
             Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center
+            LineAlignment = StringAlignment.Center,
+            FormatFlags = StringFormatFlags.NoWrap,
+            Trimming = StringTrimming.None
         };
 
-        graphics.DrawString(text, font, brush, new RectangleF(0, y, 32, 14), format);
+        var measured = graphics.MeasureString(text, font, new PointF(0, 0), format);
+        var layerWidth = Math.Max(1, (int)Math.Ceiling(measured.Width) + 8);
+
+        using var textLayer = new Bitmap(layerWidth, 32);
+        using (var layerGraphics = Graphics.FromImage(textLayer))
+        {
+            layerGraphics.Clear(Color.Transparent);
+            layerGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+
+            var layout = new RectangleF(3, 0, layerWidth - 6, 32);
+            using var shadowBrush = new SolidBrush(Color.FromArgb(220, Color.Black));
+            using var brush = new SolidBrush(color);
+            layerGraphics.DrawString(text, font, shadowBrush, new RectangleF(4, 1, layerWidth - 6, 32), format);
+            layerGraphics.DrawString(text, font, brush, layout, format);
+        }
+
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.DrawImage(
+            textLayer,
+            new Rectangle(1, 0, 30, 32),
+            0,
+            0,
+            textLayer.Width,
+            textLayer.Height,
+            GraphicsUnit.Pixel
+        );
+    }
+
+    private static Font makeReadableFont(Graphics graphics, string text)
+    {
+        var fontSize = text.Length >= 3 ? 24f : 30f;
+
+        while (fontSize > 8)
+        {
+            var font = new Font(
+                FontFamily.GenericSansSerif,
+                fontSize,
+                FontStyle.Bold,
+                GraphicsUnit.Pixel
+            );
+
+            if (graphics.MeasureString(text, font).Height <= 29)
+            {
+                return font;
+            }
+
+            font.Dispose();
+            fontSize -= 1;
+        }
+
+        return new Font(
+            FontFamily.GenericSansSerif,
+            8,
+            FontStyle.Bold,
+            GraphicsUnit.Pixel
+        );
     }
 
     private static Color colorFor(int? percent)

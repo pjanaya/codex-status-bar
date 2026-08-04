@@ -72,6 +72,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var now = DateTimeOffset.Now;
         var fiveHour = snapshot?.FiveHour?.RemainingPercent(now);
         var weekly = snapshot?.Weekly?.RemainingPercent(now);
+        var iconPercent = snapshot?.FiveHour is not null ? fiveHour : weekly;
 
         notifyIcon.Text = makeCompactTooltip(now);
         if (statusMenuItem is not null)
@@ -79,7 +80,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             statusMenuItem.Text = makeStatusText(now);
         }
 
-        var nextIcon = TrayIconRenderer.Render(fiveHour, weekly);
+        var nextIcon = TrayIconRenderer.Render(iconPercent);
         var previousIcon = notifyIcon.Icon;
         notifyIcon.Icon = nextIcon;
         previousIcon?.Dispose();
@@ -97,7 +98,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var fiveHourReset = snapshot.FiveHour?.ResetAt.LocalDateTime.ToString("HH:mm") ?? "--:--";
         var weeklyReset = snapshot.Weekly?.ResetAt.LocalDateTime.ToString("dd/MM") ?? "--/--";
 
-        return $"5h {formatPercent(fiveHour)} {fiveHourReset} | W {formatPercent(weekly)} {weeklyReset}";
+        return $"5h {formatPercent(fiveHour)} {fiveHourReset}\nWeek {formatPercent(weekly)} {weeklyReset}";
     }
 
     private string makeStatusText(DateTimeOffset now)
@@ -113,7 +114,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var weeklyReset = snapshot.Weekly?.ResetAt.LocalDateTime.ToString("dd/MM") ?? "--/--";
         var observed = snapshot.ObservedAt.LocalDateTime.ToShortTimeString();
 
-        return $"5h {formatPercent(fiveHour)} resets {fiveHourReset}; Week {formatPercent(weekly)} resets {weeklyReset}; Updated {observed}";
+        return $"5h {formatPercent(fiveHour)} resets {fiveHourReset}\nWeek {formatPercent(weekly)} resets {weeklyReset}\nUpdated {observed}";
     }
 
     private static string formatPercent(int? percent)

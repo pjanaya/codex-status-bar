@@ -90,7 +90,9 @@ internal sealed class AppServerUsageReader
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "codex",
+            // On Windows, Codex is installed as a .cmd launcher. Run it through
+            // cmd.exe so ProcessStartInfo can launch it without a shell window.
+            FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe",
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -98,8 +100,7 @@ internal sealed class AppServerUsageReader
             CreateNoWindow = true
         };
 
-        startInfo.ArgumentList.Add("app-server");
-        startInfo.ArgumentList.Add("--stdio");
+        startInfo.Arguments = "/d /s /c \"codex app-server\"";
 
         return Process.Start(startInfo)
             ?? throw new InvalidOperationException("Could not start Codex app-server.");
@@ -112,12 +113,19 @@ internal sealed class AppServerUsageReader
             return null;
         }
 
-        if (!window.TryGetProperty("usedPercent", out var usedPercent))
+        if (window.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        if (!window.TryGetProperty("resetsAt", out var resetsAt))
+        if (!window.TryGetProperty("usedPercent", out var usedPercent)
+            || usedPercent.ValueKind != JsonValueKind.Number)
+        {
+            return null;
+        }
+
+        if (!window.TryGetProperty("resetsAt", out var resetsAt)
+            || resetsAt.ValueKind != JsonValueKind.Number)
         {
             return null;
         }
@@ -138,7 +146,7 @@ internal sealed class AppServerUsageReader
             return null;
         }
 
-        if (property.ValueKind == JsonValueKind.Null)
+        if (property.ValueKind != JsonValueKind.Number)
         {
             return null;
         }
