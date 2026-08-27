@@ -17,6 +17,15 @@ A tiny, local-only indicator for Codex usage limits.
 - First line: five-hour allowance remaining and its reset time.
 - Second line: weekly allowance remaining and its reset date.
 
+The **5h Limit** menu controls whether the first line is displayed:
+
+- **Show** always displays it and is the default.
+- **Hide** hides it and uses a compact weekly-only layout.
+- **Dynamic** displays it only when Codex reports a five-hour limit.
+
+The compact layout shows the weekly reset date above its remaining percentage.
+The selected option is remembered between launches.
+
 The percentages switch to `100%` when their recorded reset times pass, even if
 Codex is closed.
 

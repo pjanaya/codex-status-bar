@@ -3,12 +3,23 @@ import CodexStatusCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let fiveHourDisplayModeKey = "fiveHourLimitDisplayMode"
+    private static let twoLimitWidth: CGFloat = 59
+    private static let singleLimitWidth: CGFloat = 32
+
     private let monitor = UsageMonitor()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: 59)
+    private let statusItem = NSStatusBar.system.statusItem(
+        withLength: AppDelegate.twoLimitWidth
+    )
     private let statusLabel = NSTextField(labelWithString: "")
+    private var statusLabelCenterYConstraint: NSLayoutConstraint?
+    private var fiveHourDisplayMode: FiveHourLimitDisplayMode = .show
+    private var fiveHourDisplayMenuItems: [FiveHourLimitDisplayMode: NSMenuItem] = [:]
+    private var latestSnapshot: UsageSnapshot?
     private var refreshMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        fiveHourDisplayMode = savedFiveHourDisplayMode()
         configureStatusItem()
 
         monitor.onChange = { [weak self] snapshot, now in
@@ -32,10 +43,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         button.addSubview(statusLabel)
 
+        let centerYConstraint = statusLabel.centerYAnchor.constraint(
+            equalTo: button.centerYAnchor,
+            constant: 1.5
+        )
+        statusLabelCenterYConstraint = centerYConstraint
+
         NSLayoutConstraint.activate([
             statusLabel.leadingAnchor.constraint(equalTo: button.leadingAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-            statusLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor, constant: 1.5)
+            centerYConstraint
         ])
 
         let menu = NSMenu()
@@ -45,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: "r"
         )
         self.refreshMenuItem = refreshMenuItem
+        menu.addItem(makeFiveHourDisplayMenuItem())
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Codex Status Bar",
@@ -54,13 +72,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
     }
 
+    private func makeFiveHourDisplayMenuItem() -> NSMenuItem {
+        let parentItem = NSMenuItem(title: "5h Limit", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "5h Limit")
+
+        addDisplayMode(.show, title: "Show", to: submenu)
+        addDisplayMode(.hide, title: "Hide", to: submenu)
+        addDisplayMode(.dynamic, title: "Dynamic", to: submenu)
+        updateDisplayModeMenuState()
+
+        parentItem.submenu = submenu
+        return parentItem
+    }
+
+    private func addDisplayMode(
+        _ mode: FiveHourLimitDisplayMode,
+        title: String,
+        to menu: NSMenu
+    ) {
+        let item = menu.addItem(
+            withTitle: title,
+            action: #selector(selectFiveHourDisplayMode(_:)),
+            keyEquivalent: ""
+        )
+        item.representedObject = mode.rawValue
+        item.target = self
+        fiveHourDisplayMenuItems[mode] = item
+    }
+
     private func updateTitle(snapshot: UsageSnapshot?, now: Date) {
+        latestSnapshot = snapshot
+
+        let shouldShowFiveHour = fiveHourDisplayMode.shouldShow(
+            hasLimit: snapshot?.fiveHour != nil
+        )
+
         guard let snapshot else {
             setTitle(
                 firstPercent: nil,
                 firstReset: "--:--",
                 secondPercent: nil,
-                secondReset: "--/--"
+                secondReset: "--/--",
+                showsFirstLine: shouldShowFiveHour
             )
             return
         }
@@ -72,7 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             firstPercent: fiveHourRemaining,
             firstReset: snapshot.fiveHour?.resetDate.formattedResetTime ?? "--:--",
             secondPercent: weeklyRemaining,
-            secondReset: snapshot.weekly?.resetDate.formattedResetDay ?? "--/--"
+            secondReset: snapshot.weekly?.resetDate.formattedResetDay ?? "--/--",
+            showsFirstLine: shouldShowFiveHour
         )
 
         statusItem.button?.toolTip = [
@@ -85,12 +139,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         firstPercent: Int?,
         firstReset: String,
         secondPercent: Int?,
-        secondReset: String
+        secondReset: String,
+        showsFirstLine: Bool
     ) {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
-        paragraphStyle.minimumLineHeight = 8
-        paragraphStyle.maximumLineHeight = 8
+        paragraphStyle.minimumLineHeight = showsFirstLine ? 8 : 10
+        paragraphStyle.maximumLineHeight = showsFirstLine ? 8 : 10
 
         let baseAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(
@@ -102,27 +157,91 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ]
 
         let title = NSMutableAttributedString()
-        appendLine(
-            to: title,
-            percent: firstPercent,
-            reset: firstReset,
-            baseAttributes: baseAttributes
-        )
-        title.append(NSAttributedString(string: "\n", attributes: baseAttributes))
-        appendLine(
-            to: title,
-            percent: secondPercent,
-            reset: secondReset,
-            baseAttributes: baseAttributes
-        )
+        if showsFirstLine {
+            statusItem.length = Self.twoLimitWidth
+            statusLabelCenterYConstraint?.constant = 1.5
+            appendLine(
+                to: title,
+                percent: firstPercent,
+                reset: firstReset,
+                baseAttributes: baseAttributes
+            )
+            title.append(NSAttributedString(string: "\n", attributes: baseAttributes))
+            appendLine(
+                to: title,
+                percent: secondPercent,
+                reset: secondReset,
+                baseAttributes: baseAttributes
+            )
+        } else {
+            statusItem.length = Self.singleLimitWidth
+            statusLabelCenterYConstraint?.constant = -0.5
+            appendStackedLimit(
+                to: title,
+                percent: secondPercent,
+                reset: secondReset,
+                baseAttributes: baseAttributes
+            )
+        }
 
         statusLabel.attributedStringValue = title
+    }
+
+    private func appendStackedLimit(
+        to title: NSMutableAttributedString,
+        percent: Int?,
+        reset: String,
+        baseAttributes: [NSAttributedString.Key: Any]
+    ) {
+        title.append(NSAttributedString(string: reset, attributes: baseAttributes))
+        title.append(NSAttributedString(string: "\n", attributes: baseAttributes))
+        appendPercentage(
+            to: title,
+            percent: percent,
+            baseAttributes: baseAttributes
+        )
+    }
+
+    private func savedFiveHourDisplayMode() -> FiveHourLimitDisplayMode {
+        let savedValue = UserDefaults.standard.string(
+            forKey: Self.fiveHourDisplayModeKey
+        )
+
+        guard let savedValue else {
+            return .show
+        }
+
+        return FiveHourLimitDisplayMode(rawValue: savedValue) ?? .show
+    }
+
+    private func updateDisplayModeMenuState() {
+        for (mode, item) in fiveHourDisplayMenuItems {
+            item.state = mode == fiveHourDisplayMode ? .on : .off
+        }
     }
 
     private func appendLine(
         to title: NSMutableAttributedString,
         percent: Int?,
         reset: String,
+        baseAttributes: [NSAttributedString.Key: Any]
+    ) {
+        appendPercentage(
+            to: title,
+            percent: percent,
+            baseAttributes: baseAttributes
+        )
+        title.append(
+            NSAttributedString(
+                string: " \(reset)",
+                attributes: baseAttributes
+            )
+        )
+    }
+
+    private func appendPercentage(
+        to title: NSMutableAttributedString,
+        percent: Int?,
         baseAttributes: [NSAttributedString.Key: Any]
     ) {
         let percentageText = percent.map { "\($0)%" } ?? "--%"
@@ -138,12 +257,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 attributes: percentageAttributes
             )
         )
-        title.append(
-            NSAttributedString(
-                string: " \(reset)",
-                attributes: baseAttributes
-            )
-        )
     }
 
     private func color(for remainingPercent: Int) -> NSColor {
@@ -156,6 +269,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return .labelColor
+    }
+
+    @objc
+    private func selectFiveHourDisplayMode(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String else {
+            return
+        }
+
+        guard let mode = FiveHourLimitDisplayMode(rawValue: rawValue) else {
+            return
+        }
+
+        fiveHourDisplayMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.fiveHourDisplayModeKey)
+        updateDisplayModeMenuState()
+        updateTitle(snapshot: latestSnapshot, now: Date())
     }
 
     @objc

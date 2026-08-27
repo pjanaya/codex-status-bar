@@ -1,5 +1,22 @@
 import Foundation
 
+public enum FiveHourLimitDisplayMode: String, CaseIterable, Sendable {
+    case show
+    case hide
+    case dynamic
+
+    public func shouldShow(hasLimit: Bool) -> Bool {
+        switch self {
+        case .show:
+            return true
+        case .hide:
+            return false
+        case .dynamic:
+            return hasLimit
+        }
+    }
+}
+
 public struct UsageWindow: Equatable, Sendable {
     public let usedPercent: Int
     public let resetDate: Date

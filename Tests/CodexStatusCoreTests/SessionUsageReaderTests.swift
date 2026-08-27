@@ -114,6 +114,14 @@ struct SessionUsageReaderTests {
         #expect(window.remainingPercent(at: resetDate) == 100)
     }
 
+    @Test
+    func choosesWhetherToShowTheFiveHourLimit() {
+        #expect(FiveHourLimitDisplayMode.show.shouldShow(hasLimit: false))
+        #expect(!FiveHourLimitDisplayMode.hide.shouldShow(hasLimit: true))
+        #expect(FiveHourLimitDisplayMode.dynamic.shouldShow(hasLimit: true))
+        #expect(!FiveHourLimitDisplayMode.dynamic.shouldShow(hasLimit: false))
+    }
+
     private func jsonLine(timestamp: String, usedPercent: Int) -> String {
         """
         {"timestamp":"\(timestamp)","payload":{"rate_limits":{"primary":{"used_percent":\(usedPercent),"window_minutes":300,"resets_at":2000000000},"secondary":{"used_percent":10,"window_minutes":10080,"resets_at":2000600000}}}}
