@@ -9,16 +9,34 @@ public struct AppServerUsageReader: Sendable {
 
     private let codexPath: String?
 
-    public init(
-        fileManager: FileManager = .default,
-        codexPaths: [String] = [
+    public init(fileManager: FileManager = .default) {
+        self.init(
+            fileManager: fileManager,
+            codexPaths: Self.defaultCodexPaths(
+                homeDirectory: fileManager.homeDirectoryForCurrentUser
+            )
+        )
+    }
+
+    public init(fileManager: FileManager = .default, codexPaths: [String]) {
+        codexPath = codexPaths.first(where: fileManager.isExecutableFile)
+    }
+
+    static func defaultCodexPaths(homeDirectory: URL) -> [String] {
+        [
+            "/Applications/ChatGPT.app/Contents/Resources/" +
+                "codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "/Applications/Codex.app/Contents/Resources/" +
+                "codex-cli/CodexCLI.app/Contents/MacOS/codex",
             "/Applications/ChatGPT.app/Contents/Resources/codex",
             "/Applications/Codex.app/Contents/Resources/codex",
-            "\(FileManager.default.homeDirectoryForCurrentUser.path)/Applications/ChatGPT.app/Contents/Resources/codex",
-            "\(FileManager.default.homeDirectoryForCurrentUser.path)/Applications/Codex.app/Contents/Resources/codex"
+            "\(homeDirectory.path)/Applications/ChatGPT.app/Contents/Resources/" +
+                "codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "\(homeDirectory.path)/Applications/Codex.app/Contents/Resources/" +
+                "codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "\(homeDirectory.path)/Applications/ChatGPT.app/Contents/Resources/codex",
+            "\(homeDirectory.path)/Applications/Codex.app/Contents/Resources/codex"
         ]
-    ) {
-        codexPath = codexPaths.first(where: fileManager.isExecutableFile)
     }
 
     public func latestSnapshot() async throws -> UsageSnapshot {

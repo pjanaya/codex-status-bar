@@ -1,8 +1,20 @@
-import CodexStatusCore
+@testable import CodexStatusCore
 import Foundation
 import Testing
 
 struct SessionUsageReaderTests {
+    @Test
+    func includesChatGPTNestedCodexExecutablePath() {
+        let paths = AppServerUsageReader.defaultCodexPaths(
+            homeDirectory: URL(fileURLWithPath: "/Users/tester")
+        )
+
+        #expect(paths.contains(
+            "/Applications/ChatGPT.app/Contents/Resources/" +
+                "codex-cli/CodexCLI.app/Contents/MacOS/codex"
+        ))
+    }
+
     @Test
     func readsAppServerRateLimitResponse() {
         let response = """
