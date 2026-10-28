@@ -11,8 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(
         withLength: AppDelegate.twoLimitWidth
     )
-    private let statusLabel = NSTextField(labelWithString: "")
-    private var statusLabelCenterYConstraint: NSLayoutConstraint?
     private var fiveHourDisplayMode: FiveHourLimitDisplayMode = .show
     private var fiveHourDisplayMenuItems: [FiveHourLimitDisplayMode: NSMenuItem] = [:]
     private var latestSnapshot: UsageSnapshot?
@@ -36,24 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         button.toolTip = "Codex allowance remaining"
         button.title = ""
-
-        statusLabel.alignment = .center
-        statusLabel.maximumNumberOfLines = 2
-        statusLabel.lineBreakMode = .byClipping
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        button.addSubview(statusLabel)
-
-        let centerYConstraint = statusLabel.centerYAnchor.constraint(
-            equalTo: button.centerYAnchor,
-            constant: 1.5
-        )
-        statusLabelCenterYConstraint = centerYConstraint
-
-        NSLayoutConstraint.activate([
-            statusLabel.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-            statusLabel.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-            centerYConstraint
-        ])
+        button.alignment = .center
+        button.lineBreakMode = .byClipping
 
         let menu = NSMenu()
         let refreshMenuItem = menu.addItem(
@@ -153,13 +135,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 weight: .medium
             ),
             .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: paragraphStyle
+            .paragraphStyle: paragraphStyle,
+            .baselineOffset: showsFirstLine ? 0 : -4
         ]
 
         let title = NSMutableAttributedString()
         if showsFirstLine {
             statusItem.length = Self.twoLimitWidth
-            statusLabelCenterYConstraint?.constant = 1.5
             appendLine(
                 to: title,
                 percent: firstPercent,
@@ -175,7 +157,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         } else {
             statusItem.length = Self.singleLimitWidth
-            statusLabelCenterYConstraint?.constant = -0.5
             appendStackedLimit(
                 to: title,
                 percent: secondPercent,
@@ -184,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        statusLabel.attributedStringValue = title
+        statusItem.button?.attributedTitle = title
     }
 
     private func appendStackedLimit(
@@ -295,11 +276,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showRefreshFeedback() {
         refreshMenuItem?.title = "Refreshed just now"
-        statusLabel.alphaValue = 0.35
+        statusItem.button?.alphaValue = 0.35
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))
-            statusLabel.alphaValue = 1
+            statusItem.button?.alphaValue = 1
 
             try? await Task.sleep(for: .seconds(4))
             refreshMenuItem?.title = "Refresh"
